@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Campus Cloud File Cache Simulator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <h1>☁ The Campus Cloud File Cache Simulator</h1>
+        <p>O(1) LFU (Least Frequently Used) Cache with LRU Tie-Breaking • Dual Maps + Doubly Linked Lists</p>
+      </div>
+
+      <div class="topbar-controls">
+        <div class="capacity-box">
+          <label for="capacityInput">Capacity (0–200):</label>
+          <input type="number" id="capacityInput" min="0" max="200" value="3" />
+          <button class="btn-top-solid" id="setCapacityBtn">Apply</button>
+        </div>
+
+        <div class="test-group">
+          <span class="test-label">Built-in Tests:</span>
+          <button class="btn-top" id="testZeroBtn">Zero Capacity</button>
+          <button class="btn-top" id="testTiesBtn">Frequency Ties</button>
+          <button class="btn-top" id="testUpdatesBtn">Repeated Updates</button>
+          <button class="btn-top" id="testMissedBtn">Missed Requests</button>
+          <button class="btn-top" id="testExampleBtn">Illustrative Example</button>
+          <button class="btn-top" id="resetCacheBtn" title="Clear cache and reset stats">Reset</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- Live Metrics -->
+    <section class="stats-bar">
+      <div class="stat-card">
+        <div class="stat-label">Capacity</div>
+        <div class="stat-value" id="statCapacity">3</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Cached Files</div>
+        <div class="stat-value" id="statSize">0 / 3</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Current minFreq</div>
+        <div class="stat-value" id="statMinFreq">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Hits / Misses (Rate)</div>
+        <div class="stat-value" id="statHitsMisses">0 / 0 (0%)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Evictions</div>
+        <div class="stat-value" id="statEvictions">0</div>
+      </div>
+    </section>
+
+    <!-- Input Mechanisms -->
+    <section class="card">
+      <div class="card-header">
+        <h2 class="card-title">Add or Access Cached Files</h2>
+        <span class="card-subtitle">All GET and PUT operations run in O(1) time without scanning the cache (supports 0–200 capacity, up to 12,000 ops)</span>
+      </div>
+      <div class="card-body">
+        <div class="inputs-grid">
+          <!-- (a) Manual Key / Value -->
+          <div>
+            <div class="input-section-label">(a) Manual Key & Value Operations</div>
+            <div class="manual-row">
+              <div class="field">
+                <label for="keyInput">File Key (Name)</label>
+                <input type="text" id="keyInput" placeholder="e.g., lecture1.pdf or A" />
+              </div>
+              <div class="field">
+                <label for="valueInput">Value (Metadata / Content)</label>
+                <input type="text" id="valueInput" placeholder="e.g., 2.4 MB or 10" />
+              </div>
+              <div class="manual-buttons">
+                <button class="btn-primary" id="putBtn">PUT</button>
+                <button class="btn-accent" id="getBtn">GET</button>
+              </div>
+            </div>
+            <div class="last-get-banner" id="lastGetBanner">Last GET Result: —</div>
+          </div>
+
+          <!-- (b) Browse Computer File Picker -->
+          <div>
+            <div class="input-section-label">(b) Upload from Computer</div>
+            <div class="file-drop-zone">
+              <div class="file-picker-info">
+                <strong>Browse Computer</strong>
+                Automatically uses selected file's name as Key and size / MIME type / download link as Value.
+              </div>
+              <label for="filePicker" class="file-btn-label">📁 Browse Computer</label>
+              <input type="file" id="filePicker" />
+            </div>
+          </div>
+        </div>
+
+        <!-- (c) Sequence Runner for Unseen / Batch Operations -->
+        <div class="sequence-box">
+          <div class="input-section-label">(c) Run Operation Sequence (for Unseen Demo Sequences)</div>
+          <div class="sequence-row">
+            <textarea id="sequenceInput" placeholder="Paste commands (newline, semicolon, or comma separated), e.g.:
+Capacity 2; PUT(A,10), PUT(B,20), GET(A), PUT(C,30), STATE"></textarea>
+            <div class="sequence-actions">
+              <button class="btn-primary" id="runSequenceBtn">▶ Run Sequence</button>
+              <button class="btn-outline" id="loadSampleSeqBtn">Load Sample Sequence</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visual Cache + Log -->
+    <section class="workspace-grid">
+      <!-- Visual Cache Display -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Visual Cache Display (Frequency Buckets)</h2>
+          <div class="legend">
+            <span class="legend-pill"><span class="dot" style="background:#1e40af"></span>MRU (Left)</span>
+            <span class="legend-pill"><span class="dot" style="background:#64748b"></span>LRU (Right)</span>
+            <span class="legend-pill" style="border-color:#fca5a5; color:#dc2626;"><span class="dot" style="background:#dc2626"></span>Next to Evict</span>
+          </div>
+        </div>
+        <div class="card-body" id="visualCacheContainer">
+          <div class="cache-empty">Cache is currently empty. Use PUT, Browse Computer, Run Sequence, or a Built-in Test.</div>
+        </div>
+      </div>
+
+      <!-- Operation & Eviction Log -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Operation & Eviction Log</h2>
+            <span class="card-subtitle" id="logCountLabel">0 entries</span>
+          </div>
+          <button class="btn-outline" id="clearLogBtn" style="padding:4px 10px; font-size:0.78rem;">Clear Log</button>
+        </div>
+        <div class="card-body">
+          <div class="log-container" id="logContainer"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STATE Report Section -->
+    <section class="card">
+      <div class="card-header">
+        <div class="state-actions" style="width: 100%;">
+          <div>
+            <h2 class="card-title">Cache STATE Report</h2>
+            <span class="card-subtitle">Displays currently cached keys, values, and access frequencies only when requested</span>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn-primary" id="showStateBtn">Show STATE Report</button>
+            <button class="btn-outline hidden" id="hideStateBtn">Hide Report</button>
+          </div>
+        </div>
+      </div>
+      <div class="card-body hidden" id="stateReportSection">
+        <div id="stateReportMeta" style="font-size:0.83rem; color:var(--muted);"></div>
+        <div class="table-wrap" id="stateTableWrap"></div>
+      </div>
+    </section>
+
+    <!-- Structure & Policy Explanation -->
+    <section class="arch-note">
+      <strong>Data Structures & Complexity:</strong>
+      <code>keyToNode</code> (<code>Map<key, Node></code>) gives <strong>O(1)</strong> key lookup, while <code>freqToList</code> (<code>Map<freq, DoublyLinkedList></code>) groups nodes by access count in MRU→LRU order. A tracked <code>minFreq</code> integer locates the lowest-frequency bucket in <strong>O(1)</strong> and removes its <code>tail.prev</code> (LRU) node upon eviction without scanning the cache.
+    </section>
+
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
