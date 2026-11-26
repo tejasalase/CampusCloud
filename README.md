@@ -55,7 +55,7 @@ Option 1: Using VS Code (Recommended)
 Option 2: Using Python (Terminal / Command Prompt)
 1. Open a terminal inside the CampusCloud folder.
 2. Run:
-   python -m http.server 8000
+   python -m http.server 5500
 3. Open your browser and go to http://localhost:8000.
 
 
